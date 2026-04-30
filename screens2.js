@@ -30,7 +30,7 @@ async function screenSoilBorehole(boreId) {
   content.appendChild(formRow('Driller:', textInput('bore-driller', bore.driller || '')));
   content.appendChild(formRow('Drilling Method:', textInput('bore-method', bore.drillingMethod || '')));
   content.appendChild(formRow('Logger:', textInput('bore-logger', bore.logger || '')));
-  content.appendChild(formRow('Total Depth (m):', depthInput('bore-depth', bore.totalDepth ?? '')));
+  content.appendChild(formRow('Total Depth (m):', depthInputWithButtons('bore-depth', bore.totalDepth ?? '')));
 
   content.appendChild(photoPreviewUI(`bore:${boreId}`, loc.projectId, `${loc.locationId}_${bore.boreholeId}`, 'Soil Borehole Photo'));
 
@@ -207,8 +207,8 @@ async function screenBoreholeOverview(boreId) {
     const fd = samples.find(s => s.sampleType === 'Field_D' && Math.abs((s.depthFrom || 0) - (n.depthFrom || 0)) < 1e-6);
     const ild = samples.find(s => s.sampleType === 'Interlab_D' && Math.abs((s.depthFrom || 0) - (n.depthFrom || 0)) < 1e-6);
     const badges = el('div', { class: 'dup-badges' }, []);
-    if (fd) badges.appendChild(el('span', { class: 'dup-badge', title: 'Field Duplicate: ' + fd.sampleId, onclick: (e) => { e.stopPropagation(); navigate(screenSoilBoreSample, fd.id); } }, 'FD'));
-    if (ild) badges.appendChild(el('span', { class: 'dup-badge', title: 'Inter-lab Duplicate: ' + ild.sampleId, onclick: (e) => { e.stopPropagation(); navigate(screenSoilBoreSample, ild.id); } }, 'ILD'));
+    if (fd) badges.appendChild(el('span', { class: 'dup-badge', title: 'Field Duplicate', onclick: (e) => { e.stopPropagation(); navigate(screenSoilBoreSample, fd.id); } }, 'FD: ' + fd.sampleId));
+    if (ild) badges.appendChild(el('span', { class: 'dup-badge', title: 'Inter-lab Duplicate', onclick: (e) => { e.stopPropagation(); navigate(screenSoilBoreSample, ild.id); } }, 'ILD: ' + ild.sampleId));
     const cell = el('div', { class: 'data-cell has-data has-layer', onclick: () => navigate(screenSoilBoreSample, n.id) }, [
       el('span', { class: 'samp-id-text' }, n.sampleId || ''),
       badges
@@ -225,7 +225,7 @@ async function screenBoreholeOverview(boreId) {
     for (let ri = r0; ri < r1; ri++) sampCoveredRows.add(ri);
     const cell = el('div', { class: 'data-cell has-data has-layer', onclick: () => navigate(screenSoilBoreSample, d.id) }, [
       el('span', { class: 'samp-id-text' }, d.sampleId || ''),
-      el('span', { class: 'dup-badge', style: 'margin-left:4px' }, d.sampleType === 'Field_D' ? 'FD' : 'ILD')
+      el('span', { class: 'dup-badge', style: 'margin-left:4px' }, d.sampleType === 'Field_D' ? 'FD: ' + d.sampleId : 'ILD: ' + d.sampleId)
     ]);
     cell.style.gridRow = `${r0 + 2} / ${r1 + 2}`;
     cell.style.gridColumn = String(COLS.samp);
@@ -370,8 +370,8 @@ async function screenLithology(lithId) {
     }}, 'Delete Lithology Layer')
   ]));
 
-  const fromI = depthInput('lith-from', l.depthFrom ?? 0);
-  const toI = depthInput('lith-to', l.depthTo ?? 0);
+  const fromI = depthInputWithButtons('lith-from', l.depthFrom ?? 0);
+  const toI = depthInputWithButtons('lith-to', l.depthTo ?? 0);
   content.appendChild(formRow('Depth from (m):', fromI));
   content.appendChild(formRow('Depth to (m):', toI));
   content.appendChild(lithBgRow('Fill / Natural:', 'lith-fillNatural', FILL_NATURAL_OPTIONS, l.fillNatural || ''));
@@ -480,8 +480,8 @@ async function screenSoilBoreSample(sampleId) {
     el('div', { class: 'field-group' }, [idI, autoBtn])
   ]));
 
-  content.appendChild(formRow('Depth from (m):', depthInput('s-from', s.depthFrom ?? 0)));
-  content.appendChild(formRow('Depth to (m):', depthInput('s-to', s.depthTo ?? 0)));
+  content.appendChild(formRow('Depth from (m):', depthInputWithButtons('s-from', s.depthFrom ?? 0)));
+  content.appendChild(formRow('Depth to (m):', depthInputWithButtons('s-to', s.depthTo ?? 0)));
 
   const dtI = textInput('s-dt', s.dateTime || '');
   const nowBtn = el('button', { class: 'btn btn-small', onclick: () => { dtI.value = nowStr(); setDirty(); }}, 'Now');
@@ -491,7 +491,7 @@ async function screenSoilBoreSample(sampleId) {
   ]));
 
   content.appendChild(formRow('Sample Type:', selectInput('s-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
-  content.appendChild(formRow('Sample Method:', selectInput('s-method', SAMPLE_METHODS, s.sampleMethod || '')));
+  content.appendChild(formRow('Sample Method:', selectInput('s-method', SAMPLE_METHODS_SOIL, s.sampleMethod || '')));
   content.appendChild(formRow('Sampler:', textInput('s-sampler', s.sampler || '')));
   content.appendChild(formRow('Sample Code:', textInput('s-code', s.sampleCode || '')));
 
@@ -578,8 +578,8 @@ async function screenSoilBoreFieldMeas(fmId) {
     }}, 'Delete Field Measurement')
   ]));
 
-  content.appendChild(formRow('Depth from (m):', depthInput('fm-from', f.depthFrom ?? 0)));
-  content.appendChild(formRow('Depth to (m):', depthInput('fm-to', f.depthTo ?? 0)));
+  content.appendChild(formRow('Depth from (m):', depthInputWithButtons('fm-from', f.depthFrom ?? 0)));
+  content.appendChild(formRow('Depth to (m):', depthInputWithButtons('fm-to', f.depthTo ?? 0)));
   const dtI = textInput('fm-dt', f.dateTime || '');
   content.appendChild(el('div', { class: 'form-field' }, [
     el('label', {}, 'Date/Time:'),
@@ -652,7 +652,7 @@ async function screenWellConstruction(boreId) {
     }}, 'Delete Well Construction')
   ]));
 
-  content.appendChild(formRow('Water Intersection Depth (m):', depthInput('wc-wi', wc.waterIntersectionDepth ?? '')));
+  content.appendChild(formRow('Water Intersection Depth (m):', depthInputWithButtons('wc-wi', wc.waterIntersectionDepth ?? '')));
   const intervals = [
     ['Screen',     'screenFrom',    'screenTo'],
     ['Sand',       'sandFrom',      'sandTo'],
@@ -664,8 +664,8 @@ async function screenWellConstruction(boreId) {
     content.appendChild(el('div', { class: 'attr-group-header', style: 'border-top:1px solid #ddd; margin-top:10px' }, [
       el('h3', { style: 'font-size:15px' }, name)
     ]));
-    content.appendChild(formRow('Depth from (m):', depthInput('wc-' + keyF, wc[keyF] ?? '')));
-    content.appendChild(formRow('Depth to (m):', depthInput('wc-' + keyT, wc[keyT] ?? '')));
+    content.appendChild(formRow('Depth from (m):', depthInputWithButtons('wc-' + keyF, wc[keyF] ?? '')));
+    content.appendChild(formRow('Depth to (m):', depthInputWithButtons('wc-' + keyT, wc[keyT] ?? '')));
   }
 
   content.appendChild(el('div', { class: 'form-field vertical' }, [

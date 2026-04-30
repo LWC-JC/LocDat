@@ -52,6 +52,11 @@ body { overscroll-behavior: none; }
 .form-field.vertical label { margin-bottom: 4px; }
 .form-field .hint { font-size: 12px; color: #888; margin-left: 8px; }
 
+/* --- Depth input with buttons --- */
+.depth-input-group { display: flex; gap: 4px; align-items: center; flex: 1; }
+.depth-input-group input { flex: 1; }
+.depth-input-group .btn-small { padding: 4px 10px; font-size: 14px; min-width: 36px; }
+
 /* --- Attribute groups on locations screen --- */
 .attr-group { margin-top: 20px; }
 .attr-group-header { display: flex; align-items: center; border-top: 1px solid #ccc; padding: 10px 0 8px; }

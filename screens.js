@@ -374,7 +374,39 @@ function addAttrGroupBtn(projectId, locId, content) {
       ...opts.map(o => el('button', { class: 'btn', style: 'display:block;width:100%;margin:4px 0', onclick: async () => {
         await addAttrGroup(locId, o.key);
         m.close();
-        screenLocations(projectId);
+        // Create and open first record
+        if (o.key === 'soilBorehole') {
+          const bore = { locationId: locId, boreholeId: '', drillDate: '', driller: '', drillingMethod: '', logger: '', totalDepth: null, scaleM: 1, intervalM: 0.1, notes: '', createdAt: new Date().toISOString() };
+          bore.id = await dbAdd('soilBoreholes', bore);
+          navigate(screenSoilBorehole, bore.id);
+        } else if (o.key === 'soilSample') {
+          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMethod: '', sampler: '', sampleCode: '', notes: '', createdAt: new Date().toISOString() };
+          samp.id = await dbAdd('soilSamples', samp);
+          navigate(screenSoilSample, samp.id);
+        } else if (o.key === 'gwSample') {
+          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMethod: '', sampler: '', sampleCode: '', notes: '', createdAt: new Date().toISOString() };
+          samp.id = await dbAdd('gwSamples', samp);
+          navigate(screenGwSample, samp.id);
+        } else if (o.key === 'svSample') {
+          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMethod: '', sampler: '', sampleCode: '', notes: '', createdAt: new Date().toISOString() };
+          samp.id = await dbAdd('svSamples', samp);
+          navigate(screenSvSample, samp.id);
+        } else if (o.key === 'gwWellGauge') {
+          const gauge = { locationId: locId, dateTime: '', wellDepth: null, depthToWater: null, gaugedBy: '', notes: '', createdAt: new Date().toISOString() };
+          gauge.id = await dbAdd('gwWellGauges', gauge);
+          navigate(screenGwWellGauge, gauge.id);
+        } else if (o.key === 'fieldMeasurement') {
+          const fm = { locationId: locId, dateTime: '', measurementType: 'PID', measurement: null, units: 'ppm', notes: '', createdAt: new Date().toISOString() };
+          fm.id = await dbAdd('fieldMeasurements', fm);
+          navigate(screenFieldMeas, fm.id);
+        } else if (o.key === 'custom1') {
+          const cust = { locationId: locId, attributeType: '', value: '', dateTime: '', notes: '', createdAt: new Date().toISOString() };
+          cust.id = await dbAdd('customRecords', cust);
+          navigate(screenCustom1, cust.id);
+        } else {
+          // spatial has no records to create, just refresh
+          screenLocations(projectId);
+        }
       }}, o.name)),
       el('div', { class: 'modal-actions' }, [
         el('button', { class: 'btn', onclick: () => m.close() }, 'Cancel')

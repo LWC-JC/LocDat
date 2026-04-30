@@ -1,3 +1,67 @@
+// ===== Screen: Login =====
+function screenLogin() {
+  clearApp();
+  const content = el('div', { class: 'content', style: 'max-width:400px; margin:80px auto; text-align:center; padding:24px' });
+  
+  content.appendChild(el('h2', { style: 'color:#8BC34A; margin-bottom:8px' }, 'LocDat'));
+  content.appendChild(el('p', { style: 'color:#666; margin-bottom:32px; font-size:14px' }, 'Beta v' + APP_VERSION));
+  
+  content.appendChild(el('p', { style: 'margin-bottom:24px' }, 'Enter password to continue'));
+  
+  const passwordInput = el('input', { 
+    type: 'password', 
+    id: 'login-password',
+    placeholder: 'Password',
+    style: 'width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:4px; margin-bottom:16px',
+    onkeydown: (e) => { if (e.key === 'Enter') loginBtn.click(); }
+  });
+  content.appendChild(passwordInput);
+  
+  const errorMsg = el('div', { 
+    id: 'login-error',
+    style: 'color:#E0594E; margin-bottom:16px; font-size:14px; min-height:20px' 
+  }, '');
+  content.appendChild(errorMsg);
+  
+  const loginBtn = el('button', { 
+    class: 'btn btn-primary',
+    style: 'width:100%; padding:12px; font-size:16px',
+    onclick: async () => {
+      const password = passwordInput.value.trim();
+      if (!password) {
+        errorMsg.textContent = 'Please enter a password';
+        return;
+      }
+      
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Authenticating...';
+      errorMsg.textContent = '';
+      
+      const result = await validateAuth(password);
+      
+      if (result.success) {
+        toast('Authentication successful');
+        navigate(screenHome);
+      } else {
+        errorMsg.textContent = result.error;
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    }
+  }, 'Login');
+  content.appendChild(loginBtn);
+  
+  content.appendChild(el('p', { style: 'margin-top:32px; font-size:12px; color:#999' }, 
+    'Contact your administrator if you need access.'));
+  
+  $app().appendChild(content);
+  
+  // Auto-focus password field
+  setTimeout(() => passwordInput.focus(), 100);
+}
+
 // ===== Screen: Soil Sample (location-level) =====
 async function screenSoilSample(sampId) {
   clearApp();
@@ -35,8 +99,8 @@ async function screenSoilSample(sampId) {
     el('div', { class: 'field-group' }, [idI, autoBtn])
   ]));
 
-  content.appendChild(formRow('Depth from (m):', depthInput('ss-from', s.depthFrom ?? 0)));
-  content.appendChild(formRow('Depth to (m):', depthInput('ss-to', s.depthTo ?? 0)));
+  content.appendChild(formRow('Depth from (m):', depthInputWithButtons('ss-from', s.depthFrom ?? 0)));
+  content.appendChild(formRow('Depth to (m):', depthInputWithButtons('ss-to', s.depthTo ?? 0)));
   const dtI = textInput('ss-dt', s.dateTime || '');
   content.appendChild(el('div', { class: 'form-field' }, [
     el('label', {}, 'Date / Time:'),
@@ -46,7 +110,7 @@ async function screenSoilSample(sampId) {
     ])
   ]));
   content.appendChild(formRow('Sample Type:', selectInput('ss-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
-  content.appendChild(formRow('Sample Method:', selectInput('ss-method', SAMPLE_METHODS, s.sampleMethod || '')));
+  content.appendChild(formRow('Sample Method:', selectInput('ss-method', SAMPLE_METHODS_SOIL, s.sampleMethod || '')));
   content.appendChild(formRow('Sampler:', textInput('ss-sampler', s.sampler || '')));
   content.appendChild(formRow('Sample Code:', textInput('ss-code', s.sampleCode || '')));
 
@@ -657,6 +721,46 @@ async function screenSettings() {
     await saveSettings(settings);
   }));
 
+  // Device ID and Authentication section
+  const authData = getAuthData();
+  if (authData && authData.deviceId) {
+    content.appendChild(el('div', { class: 'settings-section', style: 'border-top:1px solid #ddd; padding-top:20px; margin-top:20px' }, [
+      el('h3', {}, 'Device Authentication'),
+      el('div', { style: 'background:#f5f5f5; padding:12px; border-radius:4px; margin-bottom:12px' }, [
+        el('div', { style: 'font-size:12px; color:#666; margin-bottom:4px' }, 'Device ID:'),
+        el('div', { style: 'font-family:monospace; font-size:14px; color:#333; font-weight:600' }, authData.deviceId)
+      ]),
+      el('div', { class: 'text-small', style: 'margin-bottom:12px' }, 'Share this ID with your administrator to authorize this device.'),
+      el('button', { 
+        class: 'btn btn-danger btn-small',
+        onclick: async () => {
+          if (await confirmDialog('This will log you out and require you to enter the password again on next launch.', 'Logout')) {
+            clearAuthData();
+            toast('Logged out');
+            screenLogin();
+          }
+        }
+      }, 'Logout')
+    ]));
+  }
+
+  content.appendChild(el('div', { style: 'text-align:center; padding:20px 0' }, [
+    el('button', { class: 'btn btn-small', onclick: () => navigate(screenAboutLocDat) }, 'About LocDat')
+  ]));
+
+  $app().appendChild(content);
+}
+
+// ===== Screen: About LocDat =====
+function screenAboutLocDat() {
+  clearApp();
+  $app().appendChild(header({ title: 'About LocDat' }));
+  const content = el('div', { class: 'content', style: 'padding:24px; text-align:center' });
+  content.appendChild(el('p', { style: 'margin:16px 0; font-size:14px; color:#666' }, `© 2018 LocDat was designed by James Coley. All rights reserved.`));
+  content.appendChild(el('p', { style: 'margin:16px 0; font-size:14px' }, [
+    'Contact at ',
+    el('a', { href: 'mailto:jamescoley1986@gmail.com', style: 'color:#8BC34A' }, 'jamescoley1986@gmail.com')
+  ]));
   $app().appendChild(content);
 }
 
@@ -699,8 +803,8 @@ function buildMatrixSampleScreen(config) {
       el('div', { class: 'field-group' }, [idI, autoBtn])
     ]));
 
-    content.appendChild(formRow(config.fromLabel, depthInput('m-from', s.depthFrom ?? 0)));
-    content.appendChild(formRow(config.toLabel, depthInput('m-to', s.depthTo ?? 0)));
+    content.appendChild(formRow(config.fromLabel, depthInputWithButtons('m-from', s.depthFrom ?? 0)));
+    content.appendChild(formRow(config.toLabel, depthInputWithButtons('m-to', s.depthTo ?? 0)));
 
     const dtI = textInput('m-dt', s.dateTime || '');
     content.appendChild(el('div', { class: 'form-field' }, [
@@ -710,7 +814,7 @@ function buildMatrixSampleScreen(config) {
       ])
     ]));
     content.appendChild(formRow('Sample Type:', selectInput('m-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
-    content.appendChild(formRow('Sample Method:', selectInput('m-method', SAMPLE_METHODS, s.sampleMethod || '')));
+    content.appendChild(formRow('Sample Method:', selectInput('m-method', config.methods, s.sampleMethod || '')));
     content.appendChild(formRow('Sampler:', textInput('m-sampler', s.sampler || '')));
     content.appendChild(formRow('Sample Code:', textInput('m-code', s.sampleCode || '')));
 
@@ -758,6 +862,7 @@ const screenGwSample = buildMatrixSampleScreen({
   prefixKey: 'gwSamplePrefix', defaultPrefix: 'GW',
   photoKey: 'gwsamp',
   fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',
+  methods: SAMPLE_METHODS_GW,
   get screen() { return screenGwSample; }
 });
 const screenSvSample = buildMatrixSampleScreen({
@@ -765,6 +870,7 @@ const screenSvSample = buildMatrixSampleScreen({
   prefixKey: 'svSamplePrefix', defaultPrefix: 'SV',
   photoKey: 'svsamp',
   fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',
+  methods: SAMPLE_METHODS_SV,
   get screen() { return screenSvSample; }
 });
 
@@ -827,13 +933,15 @@ async function screenGwWellGauge(gaugeId) {
       dtI, el('button', { class: 'btn btn-small', onclick: () => { dtI.value = nowStr(); setDirty(); }}, 'Now')
     ])
   ]));
-  content.appendChild(formRow('Well Depth (m):', depthInput('g-wd', g.wellDepth ?? '')));
-  content.appendChild(formRow('Depth to Water (m):', depthInput('g-dtw', g.depthToWater ?? '')));
+  content.appendChild(formRow('Well Depth (m):', depthInputWithButtons('g-wd', g.wellDepth ?? '')));
+  content.appendChild(formRow('Depth to Water (m):', depthInputWithButtons('g-dtw', g.depthToWater ?? '')));
   content.appendChild(formRow('Gauged By:', textInput('g-by', g.gaugedBy || '')));
   content.appendChild(el('div', { class: 'form-field vertical' }, [
     el('label', {}, 'Gauge Notes:'),
     textArea('g-notes', g.notes || '')
   ]));
+
+  content.appendChild(photoPreviewUI(`gauge:${gaugeId}`, proj.id, `${loc.locationId}_gauge`, 'Gauge Photo'));
 
   content.appendChild(saveBar(async () => {
     g.dateTime = dtI.value;
@@ -906,7 +1014,14 @@ async function initApp() {
   try {
     await openDB();
     await getSettings(); // initialize defaults
-    screenHome();
+    
+    // Check authentication status
+    const authStatus = await checkAuthStatus();
+    if (!authStatus.authenticated) {
+      screenLogin();
+    } else {
+      screenHome();
+    }
   } catch (err) {
     console.error(err);
     showFatalError(`<h2 style="color:#E0594E">Error initialising app</h2><p>${err.message || err}</p><p>Try clearing this site's data in Chrome settings, then reload.</p>`);

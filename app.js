@@ -19,6 +19,123 @@ function mgaToLatLng(easting, northing) {
   return { lat, lng };
 }
 
+// ===== Authentication =====
+function generateDeviceFingerprint() {
+  // Generate a semi-stable device fingerprint from browser characteristics
+  const components = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + 'x' + screen.height,
+    screen.colorDepth,
+    new Date().getTimezoneOffset(),
+    navigator.hardwareConcurrency || 'unknown',
+    navigator.platform
+  ];
+  const raw = components.join('|');
+  // Simple hash function
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return 'DEV-' + Math.abs(hash).toString(36).toUpperCase();
+}
+
+async function fetchAuthConfig() {
+  try {
+    const resp = await fetch(AUTH_CONFIG_URL);
+    if (!resp.ok) throw new Error('Config fetch failed: ' + resp.status);
+    const config = await resp.json();
+    return config;
+  } catch (err) {
+    console.error('Auth config fetch error:', err);
+    return null;
+  }
+}
+
+function getAuthData() {
+  try {
+    const raw = localStorage.getItem('locdat_auth');
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function saveAuthData(deviceId, timestamp) {
+  localStorage.setItem('locdat_auth', JSON.stringify({ deviceId, timestamp }));
+}
+
+function clearAuthData() {
+  localStorage.removeItem('locdat_auth');
+}
+
+async function validateAuth(password) {
+  const config = await fetchAuthConfig();
+  if (!config) {
+    return { success: false, error: 'Cannot reach authentication server. Check your internet connection.' };
+  }
+  
+  // Check password
+  if (config.password !== password) {
+    return { success: false, error: 'Incorrect password.' };
+  }
+  
+  // Generate device fingerprint
+  const deviceId = generateDeviceFingerprint();
+  
+  // Check device allowlist (if populated)
+  if (config.allowedDevices && config.allowedDevices.length > 0) {
+    if (!config.allowedDevices.includes(deviceId)) {
+      return { success: false, error: 'This device is not authorized. Device ID: ' + deviceId };
+    }
+  }
+  
+  // Success: save auth data
+  const timestamp = new Date().toISOString();
+  saveAuthData(deviceId, timestamp);
+  
+  return { success: true, deviceId };
+}
+
+async function checkAuthStatus() {
+  const authData = getAuthData();
+  
+  // No cached auth → need login
+  if (!authData) return { authenticated: false };
+  
+  // Check if cache expired (7 days)
+  const authDate = new Date(authData.timestamp);
+  const now = new Date();
+  const daysSinceAuth = (now - authDate) / (1000 * 60 * 60 * 24);
+  
+  if (daysSinceAuth < AUTH_CACHE_DAYS) {
+    // Within grace period → allow access without re-checking
+    return { authenticated: true, deviceId: authData.deviceId, cached: true };
+  }
+  
+  // Cache expired → need to re-validate with server
+  const config = await fetchAuthConfig();
+  if (!config) {
+    // Can't reach server, but cache exists → allow access (offline grace)
+    return { authenticated: true, deviceId: authData.deviceId, cached: true, offline: true };
+  }
+  
+  // Check if device still on allowlist (if allowlist exists)
+  if (config.allowedDevices && config.allowedDevices.length > 0) {
+    if (!config.allowedDevices.includes(authData.deviceId)) {
+      // Device revoked
+      clearAuthData();
+      return { authenticated: false, revoked: true };
+    }
+  }
+  
+  // Still valid → refresh timestamp
+  saveAuthData(authData.deviceId, new Date().toISOString());
+  return { authenticated: true, deviceId: authData.deviceId, refreshed: true };
+}
+
 // ===== IndexedDB wrapper =====
 const DB_NAME = 'locdat';
 const DB_VERSION = 2;
@@ -237,6 +354,30 @@ function depthInput(id, value = '') {
   const i = el('input', { id, type: 'number', step: '0.1', inputmode: 'decimal', value: value ?? '' });
   i.addEventListener('input', () => setDirty());
   return i;
+}
+
+// Depth input with +/- 0.1m buttons
+function depthInputWithButtons(id, value = '') {
+  const inp = depthInput(id, value);
+  const upBtn = el('button', { class: 'btn btn-small', type: 'button', onclick: () => {
+    const v = parseFloat(inp.value) || 0;
+    inp.value = (v + 0.1).toFixed(1);
+    setDirty();
+  }}, '▲');
+  const downBtn = el('button', { class: 'btn btn-small', type: 'button', onclick: () => {
+    const v = parseFloat(inp.value) || 0;
+    inp.value = Math.max(0, v - 0.1).toFixed(1);
+    setDirty();
+  }}, '▼');
+  const container = el('div', { class: 'depth-input-group' }, [inp, upBtn, downBtn]);
+  // Expose the input element as a property so callers can access .value
+  container.input = inp;
+  // Also expose .value getter/setter for backward compatibility
+  Object.defineProperty(container, 'value', {
+    get: () => inp.value,
+    set: (v) => { inp.value = v; }
+  });
+  return container;
 }
 
 function textArea(id, value = '') {

@@ -1,6 +1,8 @@
 // ===== LocDat configuration (from Configuration.xlsx) =====
-const APP_VERSION = '0.3.1';
+const APP_VERSION = '0.3.5';
 const APP_STAGE = 'Beta';
+const AUTH_CONFIG_URL = 'https://gist.githubusercontent.com/LWC-JC/5d9ec7b11578ed9007c22dfa5a54c508/raw/241b3d3795e0e722d289b4df721b4c78324360c2/locdat-auth.json';
+const AUTH_CACHE_DAYS = 7;
 
 const LITH_CONFIG = {
   majorConstituents: ['CLAY', 'SILT', 'SAND', 'GRAVEL', 'COBBLE'],
@@ -21,7 +23,10 @@ const LITH_CONFIG = {
 };
 
 const SAMPLE_TYPES = ['Normal', 'Field_D', 'Interlab_D', 'Rinse', 'Trip Blank'];
-const SAMPLE_METHODS = ['', 'Grab Sample', 'Core Sample', 'Auger cutting sample'];
+const SAMPLE_METHODS_SOIL = ['', 'Grab Sample', 'Core Sample', 'Auger cutting sample', 'Other'];
+const SAMPLE_METHODS_GW = ['', 'Micro-purge pump', 'Peristaltic pump', 'Bailer', 'Other'];
+const SAMPLE_METHODS_SV = ['', 'Summa canister', 'Radiello', 'Waterloo', 'Other'];
+const SAMPLE_METHODS = SAMPLE_METHODS_SOIL; // legacy fallback
 
 const MEASUREMENT_CONFIG = {
   types: ['', 'PID', 'RemScan'],
