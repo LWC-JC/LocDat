@@ -19,35 +19,12 @@ function mgaToLatLng(easting, northing) {
   return { lat, lng };
 }
 
-// ===== Authentication =====
-function generateDeviceFingerprint() {
-  // Generate a semi-stable device fingerprint from browser characteristics
-  const components = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + 'x' + screen.height,
-    screen.colorDepth,
-    new Date().getTimezoneOffset(),
-    navigator.hardwareConcurrency || 'unknown',
-    navigator.platform
-  ];
-  const raw = components.join('|');
-  // Simple hash function
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    const char = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return 'DEV-' + Math.abs(hash).toString(36).toUpperCase();
-}
-
+// ===== Authentication (password-only) =====
 async function fetchAuthConfig() {
   try {
     const resp = await fetch(AUTH_CONFIG_URL);
     if (!resp.ok) throw new Error('Config fetch failed: ' + resp.status);
-    const config = await resp.json();
-    return config;
+    return await resp.json();
   } catch (err) {
     console.error('Auth config fetch error:', err);
     return null;
@@ -63,12 +40,22 @@ function getAuthData() {
   }
 }
 
-function saveAuthData(deviceId, timestamp) {
-  localStorage.setItem('locdat_auth', JSON.stringify({ deviceId, timestamp }));
+function saveAuthData(passwordHash, timestamp) {
+  localStorage.setItem('locdat_auth', JSON.stringify({ passwordHash, timestamp }));
 }
 
 function clearAuthData() {
   localStorage.removeItem('locdat_auth');
+}
+
+// Simple hash so we don't store the password in plaintext in localStorage
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return hash.toString(36);
 }
 
 async function validateAuth(password) {
@@ -76,64 +63,43 @@ async function validateAuth(password) {
   if (!config) {
     return { success: false, error: 'Cannot reach authentication server. Check your internet connection.' };
   }
-  
-  // Check password
   if (config.password !== password) {
     return { success: false, error: 'Incorrect password.' };
   }
-  
-  // Generate device fingerprint
-  const deviceId = generateDeviceFingerprint();
-  
-  // Check device allowlist (if populated)
-  if (config.allowedDevices && config.allowedDevices.length > 0) {
-    if (!config.allowedDevices.includes(deviceId)) {
-      return { success: false, error: 'This device is not authorized. Device ID: ' + deviceId };
-    }
-  }
-  
-  // Success: save auth data
-  const timestamp = new Date().toISOString();
-  saveAuthData(deviceId, timestamp);
-  
-  return { success: true, deviceId };
+  // Cache the password hash so we can detect password changes on re-validation
+  saveAuthData(simpleHash(password), new Date().toISOString());
+  return { success: true };
 }
 
 async function checkAuthStatus() {
   const authData = getAuthData();
-  
-  // No cached auth → need login
   if (!authData) return { authenticated: false };
-  
-  // Check if cache expired (7 days)
-  const authDate = new Date(authData.timestamp);
-  const now = new Date();
-  const daysSinceAuth = (now - authDate) / (1000 * 60 * 60 * 24);
-  
+
+  // Check if cache expired
+  const daysSinceAuth = (new Date() - new Date(authData.timestamp)) / (1000 * 60 * 60 * 24);
+
   if (daysSinceAuth < AUTH_CACHE_DAYS) {
-    // Within grace period → allow access without re-checking
-    return { authenticated: true, deviceId: authData.deviceId, cached: true };
+    // Within grace period — allow without server check
+    return { authenticated: true, cached: true };
   }
-  
-  // Cache expired → need to re-validate with server
+
+  // Cache expired — re-validate against server
   const config = await fetchAuthConfig();
   if (!config) {
-    // Can't reach server, but cache exists → allow access (offline grace)
-    return { authenticated: true, deviceId: authData.deviceId, cached: true, offline: true };
+    // Can't reach server but cache exists — allow offline grace
+    return { authenticated: true, cached: true, offline: true };
   }
-  
-  // Check if device still on allowlist (if allowlist exists)
-  if (config.allowedDevices && config.allowedDevices.length > 0) {
-    if (!config.allowedDevices.includes(authData.deviceId)) {
-      // Device revoked
-      clearAuthData();
-      return { authenticated: false, revoked: true };
-    }
+
+  // Check if the password has changed since user last authenticated
+  if (simpleHash(config.password) !== authData.passwordHash) {
+    // Password changed — force re-login
+    clearAuthData();
+    return { authenticated: false, passwordChanged: true };
   }
-  
-  // Still valid → refresh timestamp
-  saveAuthData(authData.deviceId, new Date().toISOString());
-  return { authenticated: true, deviceId: authData.deviceId, refreshed: true };
+
+  // Still valid — refresh timestamp
+  saveAuthData(authData.passwordHash, new Date().toISOString());
+  return { authenticated: true, refreshed: true };
 }
 
 // ===== IndexedDB wrapper =====

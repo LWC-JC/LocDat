@@ -721,16 +721,11 @@ async function screenSettings() {
     await saveSettings(settings);
   }));
 
-  // Device ID and Authentication section
+  // Logout section
   const authData = getAuthData();
-  if (authData && authData.deviceId) {
+  if (authData) {
     content.appendChild(el('div', { class: 'settings-section', style: 'border-top:1px solid #ddd; padding-top:20px; margin-top:20px' }, [
-      el('h3', {}, 'Device Authentication'),
-      el('div', { style: 'background:#f5f5f5; padding:12px; border-radius:4px; margin-bottom:12px' }, [
-        el('div', { style: 'font-size:12px; color:#666; margin-bottom:4px' }, 'Device ID:'),
-        el('div', { style: 'font-family:monospace; font-size:14px; color:#333; font-weight:600' }, authData.deviceId)
-      ]),
-      el('div', { class: 'text-small', style: 'margin-bottom:12px' }, 'Share this ID with your administrator to authorize this device.'),
+      el('h3', {}, 'Authentication'),
       el('button', { 
         class: 'btn btn-danger btn-small',
         onclick: async () => {
